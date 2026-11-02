@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SM64 (wasm)</title>
+<!--FIXES-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+  #status { position: fixed; left: 24px; top: 20px; color: #7fcaa0; font: 20px monospace; }
+  #fpsmeter { display: none; position: fixed; top: 10px; right: 14px; z-index: 10; color: #7fcaa0;
+              background: rgba(0,0,0,.55); border: 1px solid rgba(127,202,160,.45); border-radius: 8px;
+              padding: 4px 10px; font: 700 20px/1.2 monospace; pointer-events: none; }
+  #fpsmeter b { color: #fff; }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="-1"></canvas>
+<div id="status">loading...</div>
+<div id="fpsmeter">-- fps</div>
+<script>
+var Module = {
+  canvas: (function () {
+    var c = document.getElementById('canvas');
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+    c.addEventListener('webglcontextlost', function (e) { e.preventDefault(); location.reload(); }, false);
+    return c;
+  })(),
+  print: function () { console.log(Array.prototype.join.call(arguments, ' ')); },
+  printErr: function () { console.error(Array.prototype.join.call(arguments, ' ')); },
+  setStatus: function (text) { document.getElementById('status').textContent = text; },
+  onRuntimeInitialized: function () { document.getElementById('status').style.display = 'none'; }
+};
+
+/* FPS meter: page URL ?meter=1 */
+if (/[?&]meter=1/.test(location.search)) (function () {
+  var el = document.getElementById('fpsmeter'), frames = 0, last = performance.now(), since = last, worst = 0;
+  el.style.display = 'block';
+  function tick(now) {
+    frames++;
+    if (now - last > worst) worst = now - last;
+    last = now;
+    if (now - since >= 1000) {
+      el.innerHTML = '<b>' + Math.round(frames * 1000 / (now - since)) + '</b> fps &nbsp;' +
+                     '<span style="opacity:.65">max ' + Math.round(worst) + 'ms</span>';
+      frames = 0; since = now; worst = 0;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+<!--LOADER-->
+</body>
+</html>

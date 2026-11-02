@@ -1,0 +1,15 @@
+NOTICE
+
+This repository contains only build scripts, a small patch, web page code and an original icon.
+It contains no game code, assets, textures, audio, or ROM data.
+
+- build.py downloads sm64-port (https://github.com/sm64-port/sm64-port), which is based on the
+  Super Mario 64 decompilation (https://github.com/n64decomp/sm64), and builds it with assets
+  extracted from a ROM that you must supply yourself.
+- Everything the build produces (work/, dist/, the .wgt package) embeds Nintendo's assets.
+  It is for your own use: do not upload or redistribute it, or the ROM.
+- "Super Mario 64" and related marks are trademarks of Nintendo. This project is unofficial,
+  unaffiliated with and not endorsed by Nintendo or Samsung.
+- Emscripten, w64devkit, sdb / Tizen Studio and the Tizen test certificates are third-party
+  tools used under their own terms; build.py downloads the toolchain, nothing of it is
+  redistributed here.

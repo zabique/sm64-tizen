@@ -1,0 +1,11 @@
+# everything derived from the ROM, and the downloaded toolchain - never commit these
+/work/
+/dist/
+/toolchain/
+*.z64
+*.n64
+*.v64
+*.wgt
+*.p12
+password.txt
+__pycache__/

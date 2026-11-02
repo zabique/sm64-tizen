@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://sm64.tizen.app/SM64Tizen0" version="1.1.0" viewmodes="maximized">
+    <tizen:application id="SM64Tizen0.SM64" package="SM64Tizen0" required_version="3.0"/>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+    <access origin="*" subdomains="true"/>
+    <icon src="icon.png"/>
+    <name>@NAME@</name>
+    <tizen:profile name="tv-samsung"/>
+    <!-- the page uses no Tizen APIs; partner-level privileges would be refused in Developer Mode -->
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide" value="false"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/floating.navigation" value="false"/>
+    <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable"
+                   encryption="disable" hwkey-event="enable" install-location="auto"/>
+</widget>

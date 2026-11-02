@@ -1,0 +1,177 @@
+diff --git a/Makefile b/Makefile
+index cfac1e8..d3f8acf 100644
+--- a/Makefile
++++ b/Makefile
+@@ -170,7 +170,7 @@ endif
+ ifeq ($(TARGET_N64),0)
+   OPT_FLAGS := -O2
+   ifeq ($(TARGET_WEB),1)
+-    OPT_FLAGS += -g4 --source-map-base http://localhost:8080/
++    OPT_FLAGS := -O2
+   endif
+ endif
+ 
+@@ -462,6 +462,7 @@ ifneq ($(TARGET_WEB),1)
+   CXX := g++
+ else
+   CC := emcc
++  CXX := em++
+ endif
+ ifeq ($(CXX_FILES),"")
+   LD := $(CC)
+@@ -483,7 +484,7 @@ ifeq ($(TARGET_LINUX),1)
+ endif
+ ifeq ($(TARGET_WEB),1)
+   PLATFORM_CFLAGS  := -DTARGET_WEB
+-  PLATFORM_LDFLAGS := -lm -no-pie -s TOTAL_MEMORY=20MB -g4 --source-map-base http://localhost:8080/ -s "EXTRA_EXPORTED_RUNTIME_METHODS=['callMain']"
++  PLATFORM_LDFLAGS := -lm -s INITIAL_MEMORY=64MB -s ALLOW_MEMORY_GROWTH=1 -s USE_SDL=2 -s "EXPORTED_RUNTIME_METHODS=['callMain']"
+ endif
+ 
+ PLATFORM_CFLAGS += -DNO_SEGMENTED_MEMORY -DUSE_SYSTEM_MALLOC
+@@ -517,7 +518,10 @@ endif
+ GFX_CFLAGS += -DWIDESCREEN
+ 
+ CC_CHECK := $(CC) -fsyntax-only -fsigned-char -Wall -Wextra -Wno-format-security -D_LANGUAGE_C $(DEF_INC_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS)
+-CFLAGS := $(OPT_FLAGS) -D_LANGUAGE_C $(DEF_INC_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS) -fno-strict-aliasing -fwrapv -march=native
++CFLAGS := $(OPT_FLAGS) -D_LANGUAGE_C $(DEF_INC_CFLAGS) $(PLATFORM_CFLAGS) $(GFX_CFLAGS) -fno-strict-aliasing -fwrapv
++ifneq ($(TARGET_WEB),1)
++  CFLAGS += -march=native
++endif
+ 
+ ASFLAGS := -I include -I $(BUILD_DIR) $(foreach d,$(DEFINES),--defsym $(d))
+ 
+@@ -940,8 +944,13 @@ $(BUILD_DIR)/$(TARGET).objdump: $(ELF)
+ 
+ else
+ $(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
++ifeq ($(TARGET_WEB),1)
++	$(file >$(BUILD_DIR)/link.rsp,$(O_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES))
++	$(LD) -L $(BUILD_DIR) -o $@ @$(BUILD_DIR)/link.rsp $(LDFLAGS)
++else
+ 	$(LD) -L $(BUILD_DIR) -o $@ $(O_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS)
+ endif
++endif
+ 
+ 
+ 
+diff --git a/src/pc/gfx/gfx_opengl.c b/src/pc/gfx/gfx_opengl.c
+index 7bc9745..bb40371 100644
+--- a/src/pc/gfx/gfx_opengl.c
++++ b/src/pc/gfx/gfx_opengl.c
+@@ -175,7 +175,12 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(uint32_t shad
+     size_t num_floats = 4;
+ 
+     // Vertex shader
++#ifdef TARGET_WEB
++    append_line(vs_buf, &vs_len, "#version 100"); // WebGL = GLSL ES 1.00
++    append_line(vs_buf, &vs_len, "precision highp float;");
++#else
+     append_line(vs_buf, &vs_len, "#version 110");
++#endif
+     append_line(vs_buf, &vs_len, "attribute vec4 aVtxPos;");
+     if (cc_features.used_textures[0] || cc_features.used_textures[1]) {
+         append_line(vs_buf, &vs_len, "attribute vec2 aTexCoord;");
+@@ -206,8 +211,12 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(uint32_t shad
+     append_line(vs_buf, &vs_len, "}");
+ 
+     // Fragment shader
++#ifdef TARGET_WEB
++    append_line(fs_buf, &fs_len, "#version 100");
++    append_line(fs_buf, &fs_len, "precision mediump float;");
++#else
+     append_line(fs_buf, &fs_len, "#version 110");
+-    //append_line(fs_buf, &fs_len, "precision mediump float;");
++#endif
+     if (cc_features.used_textures[0] || cc_features.used_textures[1]) {
+         append_line(fs_buf, &fs_len, "varying vec2 vTexCoord;");
+     }
+diff --git a/src/pc/gfx/gfx_sdl2.c b/src/pc/gfx/gfx_sdl2.c
+index 4fd5c43..4089e59 100644
+--- a/src/pc/gfx/gfx_sdl2.c
++++ b/src/pc/gfx/gfx_sdl2.c
+@@ -173,10 +173,16 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
+ 
+     SDL_GL_CreateContext(wnd);
+ 
++#ifdef TARGET_WEB
++    // Frames are paced by requestAnimationFrame (pc_main.c). The timer fallback would busy-wait
++    // in SDL_Delay on the browser's main thread, which stalls rendering and audio.
++    vsync_enabled = 1;
++#else
+     SDL_GL_SetSwapInterval(1);
+     test_vsync();
+     if (!vsync_enabled)
+         puts("Warning: VSync is not enabled or not working. Falling back to timer for synchronization");
++#endif
+ 
+     for (size_t i = 0; i < sizeof(windows_scancode_table) / sizeof(SDL_Scancode); i++) {
+         inverted_scancode_table[windows_scancode_table[i]] = i;
+@@ -187,8 +193,8 @@ static void gfx_sdl_init(const char *game_name, bool start_in_fullscreen) {
+     }
+ 
+     for (size_t i = 0; i < sizeof(scancode_rmapping_nonextended) / sizeof(scancode_rmapping_nonextended[0]); i++) {
+-        inverted_scancode_table[scancode_rmapping_extended[i][0]] = inverted_scancode_table[scancode_rmapping_extended[i][1]];
+-        inverted_scancode_table[scancode_rmapping_extended[i][1]] += 0x100;
++        inverted_scancode_table[scancode_rmapping_nonextended[i][0]] = inverted_scancode_table[scancode_rmapping_nonextended[i][1]];
++        inverted_scancode_table[scancode_rmapping_nonextended[i][1]] += 0x100;
+     }
+ }
+ 
+diff --git a/src/pc/pc_main.c b/src/pc/pc_main.c
+index 89aa1fa..8664394 100644
+--- a/src/pc/pc_main.c
++++ b/src/pc/pc_main.c
+@@ -103,13 +103,13 @@ void produce_one_frame(void) {
+ static void em_main_loop(void) {
+ }
+ 
+-static void request_anim_frame(void (*func)(double time)) {
+-    EM_ASM(requestAnimationFrame(function(time) {
+-        dynCall("vd", $0, [time]);
+-    }), func);
++static EM_BOOL on_anim_frame(double time, void *user_data);
++
++static void request_anim_frame(EM_BOOL (*func)(double time, void *user_data)) {
++    emscripten_request_animation_frame(func, NULL);
+ }
+ 
+-static void on_anim_frame(double time) {
++static EM_BOOL on_anim_frame(double time, UNUSED void *user_data) {
+     static double target_time;
+ 
+     time *= 0.03; // milliseconds to frame count (33.333 ms -> 1)
+@@ -129,6 +129,7 @@ static void on_anim_frame(double time) {
+     }
+ 
+     request_anim_frame(on_anim_frame);
++    return EM_FALSE;
+ }
+ #endif
+ 
+diff --git a/tools/Makefile b/tools/Makefile
+index 92a3916..3810ed3 100644
+--- a/tools/Makefile
++++ b/tools/Makefile
+@@ -1,3 +1,4 @@
++default: all-except-recomp
+ include ../util.mk
+ 
+ HOST_ENV := $(shell uname 2>/dev/null || echo Unknown)
+@@ -7,7 +8,7 @@ CC           := gcc
+ CXX          := g++
+ CFLAGS       := -I . -Wall -Wextra -Wno-unused-parameter -pedantic -O2 -s
+ LDFLAGS      := -lm
+-ALL_PROGRAMS := armips n64graphics n64graphics_ci mio0 n64cksum textconv patch_elf_32bit aifc_decode aiff_extract_codebook vadpcm_enc tabledesign extract_data_for_mio skyconv
++ALL_PROGRAMS := n64graphics n64graphics_ci mio0 n64cksum textconv patch_elf_32bit aifc_decode aiff_extract_codebook vadpcm_enc tabledesign extract_data_for_mio skyconv
+ LIBAUDIOFILE := audiofile/libaudiofile.a
+ 
+ # Only build armips from tools if it is not found on the system
+@@ -60,7 +61,7 @@ endif
+ 
+ all-except-recomp: $(LIBAUDIOFILE) $(BUILD_PROGRAMS)
+ 
+-all: all-except-recomp ido5.3_recomp
++all: all-except-recomp
+ 
+ clean:
+ 	$(RM) $(ALL_PROGRAMS)

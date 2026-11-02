@@ -1,0 +1,4 @@
+# keep the patch byte-exact (LF) on every system, whatever core.autocrlf says
+*.patch -text
+*.png binary
+* text=auto eol=lf

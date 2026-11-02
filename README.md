@@ -105,6 +105,9 @@ Add these to the page URL (`dist/web/index.html?meter=1`) or bake them into the 
   `patches/sm64-port-web.patch` brings that old target up to date:
   - build: flags for current Emscripten (memory growth, SDL2 port, `em++`, no `-march=native`),
     a response file for the link (Windows command-line limit), MinGW fixes for the host tools;
+  - `MIN_CHROME_VERSION=76`: Tizen 6.0's web engine is Chromium 76, and Emscripten's default
+    output uses newer JavaScript (`?.`) that it cannot parse (black screen, page stuck loading).
+    With this setting Emscripten runs Babel over its output;
   - `emscripten_request_animation_frame` in place of the removed `dynCall`;
   - GLSL ES (`#version 100`) shaders, which WebGL requires;
   - no timer frame pacing on the web: it busy-waited in `SDL_Delay` on the browser's main thread
